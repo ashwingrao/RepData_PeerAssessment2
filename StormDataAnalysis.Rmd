@@ -1,0 +1,217 @@
+---
+title: Analysis of How Storms Affect Both Public Health and Economies in Communities
+  and Municipalities
+author: "Ashwin Rao"
+date: "April 25, 2015"
+output:
+  html_document:
+    fig_caption: yes
+    keep_md: yes
+    toc: yes
+---
+
+## Introduction
+Storms and other severe weather events can cause both public health and economic problems for communities and municipalities. Many severe events can result in fatalities, injuries, and property damage, and preventing such outcomes to the extent possible is a key concern.
+
+This analysis involves exploring the U.S. National Oceanic and Atmospheric Administration's (NOAA) storm database. This database tracks characteristics of major storms and weather events in the United States, including when and where they occur, as well as estimates of any fatalities, injuries, and property damage.
+
+## Data
+
+The data for this assignment come in the form of a comma-separated-value file compressed via the bzip2 algorithm to reduce its size. You can download the file from the course web site:  
+
+* [Storm Data](https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2) [47Mb]    
+
+There is also some documentation of the database available. Here you will find how some of the variables are constructed/defined.
+
+* National Weather Service [Storm Data Documentation](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2Fpd01016005curr.pdf)
+
+* National Climatic Data Center Storm Events [FAQ](https://d396qusza40orc.cloudfront.net/repdata%2Fpeer2_doc%2FNCDC%20Storm%20Events-FAQ%20Page.pdf)
+
+The events in the database start in the year 1950 and end in November 2011. In the earlier years of the database there are generally fewer events recorded, most likely due to a lack of good records. More recent years should be considered more complete.
+
+## Questions being answered
+Your data analysis must address the following questions:
+
+1) Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+1) Across the United States, which types of events have the greatest economic consequences?
+
+This is purely a situational analysis, and no recommendation is required.
+
+## Synopsis
+The data was downloaded from the NWS website, and imported into the table. I found that the data was not very clean, as there were many incomplete records, and the input values had many typographical errors, and the the Events were mis-labeled. So the first step was to clean the data by replacing all the errors with known values. Then appropriate graphs were drawn to determine the answers to the above questions.
+
+## Data Processing
+I reset the environment by first changing the working folder to the folder where the code existed
+```{r getting_started}
+#setwd("~/Documents/DropBox-AGR/Dropbox/Git/coursera//Reproducible/RepData_PeerAssessment2/")
+rm(list=ls())
+```
+
+Now I downloaded the file from the NWS website
+```{r download_data}
+download.file(url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",destfile = "StormData.bzip2", method = "curl", mode = "wb")
+```
+
+I then read the new file directly into a table
+```{r read_data}
+
+dt <- read.table("StormData.bzip2",na.strings = "", sep = ",", header = TRUE)
+
+# I ran some summary statistic to understand the makeup of the data
+# Summary
+summary(dt)   
+
+# Str function
+str(dt)
+
+# I also printed the first 20 rows to get a feel for the data
+head(dt, 20)
+
+```
+I copied the "Known" Events from the [Storm-Data-Export-Format.docx file](ftp://ftp.ncdc.noaa.gov/pub/data/swdi/stormevents/csvfiles/Storm-Data-Export-Format.docx) and put them in the event.csv as reference, so I can use these to normalize all errors. After looking at "str" output, I realized that the EVTYPE attribute, which is to be the center of my inquery, had a lot of typographical errors, and values that didn't correspond to the documentation, so I knew that this data needed cleanup. 
+
+```{r read_std_events}
+# From ftp://ftp.ncdc.noaa.gov/pub/data/swdi/stormevents/csvfiles/Storm-Data-Export-Format.docx
+eventsRead <- readLines("event.csv", n=1)
+events <- strsplit(x = eventsRead, split = ",")
+
+# I normalized all these events to lower case for further processing
+events <- sapply(X = events,FUN = tolower)
+events
+```
+
+I therefore made a copy of the table to ensure that the original table was intact.
+```{r clean_data1}
+
+dtProcessed <- dt
+
+```
+
+I then did some cleanup of the data in the following way
+```{r clean_data2}
+
+dtProcessed$EVTYPE <-  sapply(X = dtProcessed$EVTYPE,FUN = tolower)
+# I got a list of unique EVTYPE values
+origEVTYPE <- unique(factor(dtProcessed$EVTYPE))
+
+# I then converted these values into lower case values, so they could be compared with the standard Event's list that was retrieved earlier.
+origEVTYPE <- sapply(X = origEVTYPE,FUN = tolower)
+
+# I then checked how many of these values were not in the standard list 
+origEVTYPE.unresolved <- origEVTYPE[!origEVTYPE %in% events]
+str(origEVTYPE.unresolved) # Gave me more information on the number that were not in the standard list.
+
+# I slowly replaced the mis-labeled, mis-typed values based on my understanding of the domain
+dtProcessed[grep("*wind*", dtProcessed$EVTYPE),]$EVTYPE <- "thunderstorm wind"
+dtProcessed[grep("*storm surge*", dtProcessed$EVTYPE),]$EVTYPE <- "thunderstorm wind"
+dtProcessed[grep("*freez*", dtProcessed$EVTYPE),]$EVTYPE <- "ice storm"
+dtProcessed[grep("*hail*", dtProcessed$EVTYPE),]$EVTYPE <- "ice storm"
+dtProcessed[grep("*ice*", dtProcessed$EVTYPE),]$EVTYPE <- "ice storm"
+dtProcessed[grep("*frost*", dtProcessed$EVTYPE),]$EVTYPE <- "ice storm"
+dtProcessed[grep("*glaze*", dtProcessed$EVTYPE),]$EVTYPE <- "ice storm"
+dtProcessed[grep("*coastal*", dtProcessed$EVTYPE),]$EVTYPE <- "marine strong wind"
+dtProcessed[grep("*snow*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy snow"
+dtProcessed[grep("summary*", dtProcessed$EVTYPE),]$EVTYPE <- "summary"
+#dtProcessed[grep("*hurricane*", dtProcessed$EVTYPE),]$EVTYPE <- "hurricane (typhoon)"
+#dtProcessed[grep("*cold*", dtProcessed$EVTYPE),]$EVTYPE <- "frost/freeze"
+dtProcessed[grep("*flash flooding*", dtProcessed$EVTYPE),]$EVTYPE <- "flash flood"
+dtProcessed[grep("*lightning*", dtProcessed$EVTYPE),]$EVTYPE <- "lightning"
+dtProcessed[grep("*ligntning*", dtProcessed$EVTYPE),]$EVTYPE <- "lightning"
+dtProcessed[grep("*lighting*", dtProcessed$EVTYPE),]$EVTYPE <- "lightning"
+#dtProcessed[grep("*cloud*", dtProcessed$EVTYPE),]$EVTYPE <- "funnel cloud"
+dtProcessed[grep("*spout*", dtProcessed$EVTYPE),]$EVTYPE <- "funnel cloud"
+#dtProcessed[grep("*microburst*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy rain"
+dtProcessed[grep("*mudslide*", dtProcessed$EVTYPE),]$EVTYPE <- "avalanche"
+dtProcessed[grep("*mud slide*", dtProcessed$EVTYPE),]$EVTYPE <- "avalanche"
+dtProcessed[grep("*mud*", dtProcessed$EVTYPE),]$EVTYPE <- "avalanche"
+dtProcessed[grep("*landslide*", dtProcessed$EVTYPE),]$EVTYPE <- "avalanche"
+dtProcessed[grep("*avalance*", dtProcessed$EVTYPE),]$EVTYPE <- "avalanche"
+dtProcessed[grep("*fog*", dtProcessed$EVTYPE),]$EVTYPE <- "dense fog"
+dtProcessed[grep("*tornado*", dtProcessed$EVTYPE),]$EVTYPE <- "tornado"
+dtProcessed[grep("*gustnado*", dtProcessed$EVTYPE),]$EVTYPE <- "tornado"
+dtProcessed[grep("*rains*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy rain"
+dtProcessed[grep("*downburst*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy rain"
+dtProcessed[grep("*wet*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy rain"
+dtProcessed[grep("*precipitation*", dtProcessed$EVTYPE),]$EVTYPE <- "heavy rain"
+dtProcessed[grep("*dry*", dtProcessed$EVTYPE),]$EVTYPE <- "drought"
+dtProcessed[grep("*funnel*", dtProcessed$EVTYPE),]$EVTYPE <- "tornado"
+dtProcessed[grep("*torndao*", dtProcessed$EVTYPE),]$EVTYPE <- "tornado"
+#dtProcessed[grep("*beach*", dtProcessed$EVTYPE),]$EVTYPE <- "coastal flood"
+dtProcessed[grep("*thunder*", dtProcessed$EVTYPE),]$EVTYPE <- "thunderstorm wind"
+dtProcessed[grep("*blizzard*", dtProcessed$EVTYPE),]$EVTYPE <- "blizzard"
+dtProcessed[grep("*flood*", dtProcessed$EVTYPE),]$EVTYPE <- "flood"
+dtProcessed[grep("*high*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+dtProcessed[grep("*heat*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+dtProcessed[grep("*hot*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+dtProcessed[grep("*excessive*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+dtProcessed[grep("*warm*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+dtProcessed[grep("*record*", dtProcessed$EVTYPE),]$EVTYPE <- "heat"
+#dtProcessed[grep("*cold*", (dtProcessed$EVTYPE),]$EVTYPE <- "extreme cold/wind chill"
+dtProcessed[grep("*low*", dtProcessed$EVTYPE),]$EVTYPE <- "extreme cold/wind chill"
+dtProcessed[grep("*fire*", dtProcessed$EVTYPE),]$EVTYPE <- "wildfire"
+dtProcessed[grep("*turbulence*", dtProcessed$EVTYPE),]$EVTYPE <- "tornado"
+dtProcessed[grep("*marine*", dtProcessed$EVTYPE),]$EVTYPE <- "marine thunderstorm wind"
+dtProcessed[grep("*urban*", dtProcessed$EVTYPE),]$EVTYPE <- "misc"
+dtProcessed[grep("*apache*", dtProcessed$EVTYPE),]$EVTYPE <- "misc"
+dtProcessed[grep("*other*", dtProcessed$EVTYPE),]$EVTYPE <- "misc"
+#dtProcessed[grep("*?*", dtProcessed$EVTYPE),]$EVTYPE <- "misc"
+dtProcessed[grep("*rip*", dtProcessed$EVTYPE),]$EVTYPE <- "rip current"
+
+str(dtProcessed)
+```
+## Results
+
+Now that I had fixed all the errors, it is time to answer the questions!!!   
+
+### Q1: Across the United States, which types of events (as indicated in the EVTYPE variable) are most harmful with respect to population health?
+
+In order to calculate this, I had to aggregate the data for each of the events for Injuries & Fatalities
+``` {r results1}
+## First I had to analyze the injuries
+aggdata.injuries <- aggregate(INJURIES ~ EVTYPE, dtProcessed, sum,  na.rm=TRUE)
+
+## I then sorted the results & took the top 10 results, as they were the most relevant ones to answer our question.
+aggdata.injuries.sorted <- head(aggdata.injuries[order(-aggdata.injuries$INJURIES),],10)
+aggdata.injuries.sorted
+
+## I repeated the analysis for Fatalities in the dataset
+aggdata.fatalities <- aggregate(FATALITIES ~ EVTYPE, dtProcessed, sum,  na.rm=TRUE)
+aggdata.fatalities.sorted <- head(aggdata.fatalities[order(-aggdata.fatalities$FATALITIES),],10)
+aggdata.fatalities.sorted
+
+
+library(grid)
+library(ggplot2)
+pushViewport(viewport(layout = grid.layout(3, 1)))
+injPlot <- ggplot(data = aggdata.injuries.sorted, aes(x=EVTYPE, y=INJURIES, fill=EVTYPE)) + geom_bar(stat="identity")
+fatPlot <- ggplot(data = aggdata.fatalities.sorted, aes(x=EVTYPE, y=FATALITIES, fill=EVTYPE)) + geom_bar(stat="identity")
+print(injPlot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(fatPlot, vp = viewport(layout.pos.row = 3, layout.pos.col = 1))
+
+```
+   
+### A1: Tornados are the most harmful with respect to population health.
+
+### Q2: Across the United States, which types of events have the greatest economic consequences?
+In order to calculate this, I had to aggregate the data for each of the events for Property Damage & Crop Damage.
+``` {r results2}
+## First I had to analyze the property dammage
+aggdata.PROPDMG <- aggregate(PROPDMG ~ EVTYPE, dtProcessed, sum,  na.rm=TRUE)
+aggdata.PROPDMG.sorted <- head(aggdata.PROPDMG[order(-aggdata.PROPDMG$PROPDMG),],10)
+aggdata.PROPDMG.sorted
+
+## Then I analyzed that of Crop Damage 
+## CROPDMG
+aggdata.CROPDMG <- aggregate(CROPDMG ~ EVTYPE, dtProcessed, sum,  na.rm=TRUE)
+aggdata.CROPDMG.sorted <- head(aggdata.CROPDMG[order(-aggdata.CROPDMG$CROPDMG),],10)
+aggdata.CROPDMG.sorted
+
+# Then I plotted both together in a panel
+pushViewport(viewport(layout = grid.layout(3, 1)))
+propPlot <- ggplot(data = aggdata.PROPDMG.sorted, aes(x=EVTYPE, y=PROPDMG, fill=EVTYPE)) + geom_bar(stat="identity")
+cropPlot <- ggplot(data = aggdata.CROPDMG.sorted, aes(x=EVTYPE, y=CROPDMG, fill=EVTYPE)) + geom_bar(stat="identity")
+print(propPlot, vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(cropPlot, vp = viewport(layout.pos.row = 3, layout.pos.col = 1))
+```
+
+### A2: Thunderstorm wind are the most damaging to property and ice storms are most damaging to crops.
