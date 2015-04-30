@@ -37,7 +37,7 @@ I reset the environment by first changing the working folder to the folder where
 
 ```r
 #setwd("~/Documents/DropBox-AGR/Dropbox/Git/coursera//Reproducible/RepData_PeerAssessment2/")
-rm(list=ls())
+#rm(list=ls())
 ```
 
 Now I downloaded the file from the NWS website

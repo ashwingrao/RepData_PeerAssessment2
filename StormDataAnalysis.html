@@ -118,7 +118,7 @@ img {
 <h2>Data Processing</h2>
 <p>I reset the environment by first changing the working folder to the folder where the code existed</p>
 <pre class="r"><code>#setwd(&quot;~/Documents/DropBox-AGR/Dropbox/Git/coursera//Reproducible/RepData_PeerAssessment2/&quot;)
-rm(list=ls())</code></pre>
+#rm(list=ls())</code></pre>
 <p>Now I downloaded the file from the NWS website</p>
 <pre class="r"><code>download.file(url = &quot;https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2&quot;,destfile = &quot;StormData.bzip2&quot;, method = &quot;curl&quot;, mode = &quot;wb&quot;)</code></pre>
 <p>I then read the new file directly into a table</p>

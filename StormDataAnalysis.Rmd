@@ -44,16 +44,16 @@ The data was downloaded from the NWS website, and imported into the table. I fou
 I reset the environment by first changing the working folder to the folder where the code existed
 ```{r getting_started}
 #setwd("~/Documents/DropBox-AGR/Dropbox/Git/coursera//Reproducible/RepData_PeerAssessment2/")
-rm(list=ls())
+#rm(list=ls())
 ```
 
 Now I downloaded the file from the NWS website
-```{r download_data}
+```{r download_data, cache=TRUE}
 download.file(url = "https://d396qusza40orc.cloudfront.net/repdata%2Fdata%2FStormData.csv.bz2",destfile = "StormData.bzip2", method = "curl", mode = "wb")
 ```
 
 I then read the new file directly into a table
-```{r read_data}
+```{r read_data, cache=TRUE}
 
 dt <- read.table("StormData.bzip2",na.strings = "", sep = ",", header = TRUE)
 
@@ -70,7 +70,7 @@ head(dt, 20)
 ```
 I copied the "Known" Events from the [Storm-Data-Export-Format.docx file](ftp://ftp.ncdc.noaa.gov/pub/data/swdi/stormevents/csvfiles/Storm-Data-Export-Format.docx) and put them in the event.csv as reference, so I can use these to normalize all errors. After looking at "str" output, I realized that the EVTYPE attribute, which is to be the center of my inquery, had a lot of typographical errors, and values that didn't correspond to the documentation, so I knew that this data needed cleanup. 
 
-```{r read_std_events}
+```{r read_std_events, cache=TRUE}
 # From ftp://ftp.ncdc.noaa.gov/pub/data/swdi/stormevents/csvfiles/Storm-Data-Export-Format.docx
 eventsRead <- readLines("event.csv", n=1)
 events <- strsplit(x = eventsRead, split = ",")
@@ -88,7 +88,7 @@ dtProcessed <- dt
 ```
 
 I then did some cleanup of the data in the following way
-```{r clean_data2}
+```{r clean_data2, cache=TRUE}
 
 dtProcessed$EVTYPE <-  sapply(X = dtProcessed$EVTYPE,FUN = tolower)
 # I got a list of unique EVTYPE values
